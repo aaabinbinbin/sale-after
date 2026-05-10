@@ -1,4 +1,5 @@
-# 本地开发配置
+# 本地开发覆盖配置（与 application.yml 中 spring.profiles.active=local 对应）
+
 logging:
   level:
     com.aftersales: DEBUG
@@ -7,10 +8,26 @@ logging:
     org.springframework.amqp: INFO
 
 spring:
+  # MySQL 本地开发覆盖
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/after_sales_agent?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&allowMultiQueries=true&createDatabaseIfNotExist=true
     username: root
-    password: root
+    password: 123456
+
+  # Redis 本地开发覆盖（密码 123456，DB1）
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: 123456
+      database: 1
+
+  # RabbitMQ 本地开发覆盖
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: aftersales
+    password: aftersales123
 
   # 本地开发 SQL 初始化
   sql:
@@ -21,4 +38,5 @@ after-sales:
   # 本地开发允许 MySQL fallback 用于 RAG 向量检索
   rag:
     mysql-fallback-enabled: true
-    # pgvector 未就绪时使用 MySQL 做简单 keyword 检索，仅用于开发
+    # pgvector 未就绪时使用 MySQL 做简单 keyword 检索，仅用于开发环境
+    # 生产环境必须使用 pgvector，该路径不会进入生产
