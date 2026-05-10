@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.ExchangeRecordMapper">
+
+    <select id="selectByExchangeNo" resultType="com.aftersales.infra.entity.ExchangeRecord">
+        SELECT * FROM exchange_record WHERE exchange_no = #{exchangeNo}
+    </select>
+
+    <select id="selectByAfterSalesId" resultType="com.aftersales.infra.entity.ExchangeRecord">
+        SELECT * FROM exchange_record WHERE after_sales_id = #{afterSalesId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO exchange_record (exchange_no, after_sales_id, after_sales_no, exchange_status, stock_locked, created_at, updated_at)
+        VALUES (#{exchangeNo}, #{afterSalesId}, #{afterSalesNo}, #{exchangeStatus}, #{stockLocked}, NOW(), NOW())
+    </insert>
+
+    <update id="updateStockLocked">
+        UPDATE exchange_record SET stock_locked = #{stockLocked}, updated_at = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="updateShipped">
+        UPDATE exchange_record
+        SET exchange_status = #{exchangeStatus}, outbound_logistics_company = #{outboundLogisticsCompany},
+            outbound_logistics_no = #{outboundLogisticsNo}, shipped_at = NOW(), updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

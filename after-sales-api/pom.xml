@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.aftersales</groupId>
+        <artifactId>after-sales-agent-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>after-sales-api</artifactId>
+    <name>after-sales-api</name>
+    <description>接口层模块：Controller、DTO、VO、OpenAPI 注解</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-auth</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-biz</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-agent</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-rag</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+        </dependency>
+    </dependencies>
+</project>

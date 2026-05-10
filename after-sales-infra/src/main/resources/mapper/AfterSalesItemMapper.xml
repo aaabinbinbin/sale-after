@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.AfterSalesItemMapper">
+
+    <select id="selectByAfterSalesId" resultType="com.aftersales.infra.entity.AfterSalesItem">
+        SELECT id, after_sales_id, after_sales_no, order_item_id,
+               product_id, sku_id, product_name, sku_name,
+               apply_quantity, approved_quantity, refundable_amount,
+               apply_amount, approved_amount, exchange_sku_id, item_status,
+               created_at, updated_at
+        FROM after_sales_item
+        WHERE after_sales_id = #{afterSalesId}
+    </select>
+
+    <select id="selectByAfterSalesNo" resultType="com.aftersales.infra.entity.AfterSalesItem">
+        SELECT id, after_sales_id, after_sales_no, order_item_id,
+               product_id, sku_id, product_name, sku_name,
+               apply_quantity, approved_quantity, refundable_amount,
+               apply_amount, approved_amount, exchange_sku_id, item_status,
+               created_at, updated_at
+        FROM after_sales_item
+        WHERE after_sales_no = #{afterSalesNo}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO after_sales_item (
+            after_sales_id, after_sales_no, order_item_id,
+            product_id, sku_id, product_name, sku_name,
+            apply_quantity, approved_quantity, refundable_amount,
+            apply_amount, approved_amount, exchange_sku_id, item_status,
+            created_at, updated_at
+        ) VALUES (
+            #{afterSalesId}, #{afterSalesNo}, #{orderItemId},
+            #{productId}, #{skuId}, #{productName}, #{skuName},
+            #{applyQuantity}, #{approvedQuantity}, #{refundableAmount},
+            #{applyAmount}, #{approvedAmount}, #{exchangeSkuId}, #{itemStatus},
+            NOW(), NOW()
+        )
+    </insert>
+
+    <update id="updateApprovedInfo">
+        UPDATE after_sales_item
+        SET approved_quantity = #{approvedQuantity},
+            approved_amount = #{approvedAmount},
+            item_status = #{itemStatus},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

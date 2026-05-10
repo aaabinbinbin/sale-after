@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.AgentToolCallMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_tool_call (trace_id, tool_name, tool_input, success, error_message, created_at)
+        VALUES (#{traceId}, #{toolName}, #{toolInput}, #{success}, #{errorMessage}, NOW())
+    </insert>
+    <select id="selectByTraceId" resultType="com.aftersales.infra.entity.AgentToolCall">
+        SELECT * FROM agent_tool_call WHERE trace_id = #{traceId}
+    </select>
+</mapper>

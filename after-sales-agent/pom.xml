@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.aftersales</groupId>
+        <artifactId>after-sales-agent-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>after-sales-agent</artifactId>
+    <name>after-sales-agent</name>
+    <description>Agent 模块：意图识别、Skill 注册、风险控制、确认态、SSE、Trace</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-biz</artifactId>
+        </dependency>
+        <!-- RagRetrieveSkill 引用 RAG 模块的检索服务 -->
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-rag</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+        </dependency>
+    </dependencies>
+</project>

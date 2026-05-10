@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.AfterSalesOrderMapper">
+
+    <!-- 基础字段 -->
+    <sql id="BaseColumns">
+        id, after_sales_no, order_id, order_no, user_id, after_sales_type, status,
+        reason_code, reason_text, apply_amount, approved_amount, applicant_remark,
+        reviewer_id, review_remark, reviewed_at, completed_at,
+        version, created_at, updated_at
+    </sql>
+
+    <!-- 通过售后单号查询 -->
+    <select id="selectByAfterSalesNo" resultType="com.aftersales.infra.entity.AfterSalesOrder">
+        SELECT <include refid="BaseColumns"/>
+        FROM after_sales_order
+        WHERE after_sales_no = #{afterSalesNo}
+    </select>
+
+    <select id="selectById" resultType="com.aftersales.infra.entity.AfterSalesOrder">
+        SELECT <include refid="BaseColumns"/>
+        FROM after_sales_order
+        WHERE id = #{id}
+    </select>
+
+    <!-- 用户售后列表 -->
+    <select id="selectByUserId" resultType="com.aftersales.infra.entity.AfterSalesOrder">
+        SELECT <include refid="BaseColumns"/>
+        FROM after_sales_order
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByUserId" resultType="long">
+        SELECT COUNT(1) FROM after_sales_order WHERE user_id = #{userId}
+    </select>
+
+    <!-- 客服工作台多条件筛选 -->
+    <select id="selectByCondition" resultType="com.aftersales.infra.entity.AfterSalesOrder">
+        SELECT <include refid="BaseColumns"/>
+        FROM after_sales_order
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="afterSalesType != null and afterSalesType != ''">
+                AND after_sales_type = #{afterSalesType}
+            </if>
+            <if test="orderNo != null and orderNo != ''">
+                AND order_no = #{orderNo}
+            </if>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(1) FROM after_sales_order
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="afterSalesType != null and afterSalesType != ''">
+                AND after_sales_type = #{afterSalesType}
+            </if>
+            <if test="orderNo != null and orderNo != ''">
+                AND order_no = #{orderNo}
+            </if>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+        </where>
+    </select>
+
+    <!-- 插入售后主单 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO after_sales_order (
+            after_sales_no, order_id, order_no, user_id, after_sales_type, status,
+            reason_code, reason_text, apply_amount, approved_amount, applicant_remark,
+            version, created_at, updated_at
+        ) VALUES (
+            #{afterSalesNo}, #{orderId}, #{orderNo}, #{userId}, #{afterSalesType}, #{status},
+            #{reasonCode}, #{reasonText}, #{applyAmount}, #{approvedAmount}, #{applicantRemark},
+            0, NOW(), NOW()
+        )
+    </insert>
+
+    <!-- 带乐观锁的状态更新（必须同时校验 version 和 expectedStatus） -->
+    <update id="updateStatusWithVersion">
+        UPDATE after_sales_order
+        SET status = #{newStatus},
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = #{id}
+          AND version = #{version}
+          AND status = #{expectedStatus}
+    </update>
+
+    <!-- 审核更新 -->
+    <update id="updateReviewInfo">
+        UPDATE after_sales_order
+        SET reviewer_id = #{reviewerId},
+            review_remark = #{reviewRemark},
+            approved_amount = #{approvedAmount},
+            status = #{newStatus},
+            reviewed_at = NOW(),
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = #{id}
+          AND version = #{version}
+          AND status = #{expectedStatus}
+    </update>
+
+    <!-- 完成 -->
+    <update id="updateComplete">
+        UPDATE after_sales_order
+        SET status = #{newStatus},
+            completed_at = NOW(),
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = #{id}
+          AND version = #{version}
+          AND status = #{expectedStatus}
+    </update>
+</mapper>

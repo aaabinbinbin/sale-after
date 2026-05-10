@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.KnowledgeDocMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO knowledge_doc (doc_no, doc_type, title, source_type, source_id, content, status, version, created_at, updated_at)
+        VALUES (#{docNo}, #{docType}, #{title}, #{sourceType}, #{sourceId}, #{content}, #{status}, #{version}, NOW(), NOW())
+    </insert>
+
+    <select id="selectByDocNo" resultType="com.aftersales.infra.entity.KnowledgeDoc">
+        SELECT * FROM knowledge_doc WHERE doc_no = #{docNo}
+    </select>
+
+    <select id="selectByType" resultType="com.aftersales.infra.entity.KnowledgeDoc">
+        SELECT * FROM knowledge_doc WHERE doc_type = #{docType} AND status = 'ACTIVE'
+    </select>
+
+    <select id="selectAll" resultType="com.aftersales.infra.entity.KnowledgeDoc">
+        SELECT * FROM knowledge_doc WHERE status = 'ACTIVE'
+    </select>
+
+    <!-- RAG 评估集：问题 + 期望文档编号 -->
+    <select id="selectEvalDataset" resultType="java.util.LinkedHashMap">
+        SELECT question, expected_doc_nos AS expectedDocNos
+        FROM rag_eval_dataset WHERE enabled = 1
+    </select>
+</mapper>

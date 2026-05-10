@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.SkuStockMapper">
+
+    <select id="selectBySkuId" resultType="com.aftersales.infra.entity.SkuStock">
+        SELECT id, sku_id, total_stock, available_stock, sold_stock, version, created_at, updated_at
+        FROM sku_stock WHERE sku_id = #{skuId}
+    </select>
+
+    <update id="decreaseStock">
+        UPDATE sku_stock
+        SET available_stock = available_stock - #{quantity},
+            sold_stock = sold_stock + #{quantity},
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = #{id} AND version = #{version} AND available_stock >= #{quantity}
+    </update>
+</mapper>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.AgentTraceMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_trace (trace_id, user_id, conversation_id, user_input, status, created_at, updated_at)
+        VALUES (#{traceId}, #{userId}, #{conversationId}, #{userInput}, #{status}, NOW(), NOW())
+    </insert>
+
+    <select id="selectByTraceId" resultType="com.aftersales.infra.entity.AgentTrace">
+        SELECT * FROM agent_trace WHERE trace_id = #{traceId}
+    </select>
+
+    <select id="selectByUserId" resultType="com.aftersales.infra.entity.AgentTrace">
+        SELECT * FROM agent_trace WHERE user_id = #{userId} ORDER BY created_at DESC LIMIT #{limit}
+    </select>
+
+    <update id="updateResult">
+        UPDATE agent_trace
+        SET intent = #{intent}, risk_level = #{riskLevel}, final_answer = #{finalAnswer},
+            status = #{status}, error_message = #{errorMessage}, latency_ms = #{latencyMs}, updated_at = NOW()
+        WHERE trace_id = #{traceId}
+    </update>
+</mapper>

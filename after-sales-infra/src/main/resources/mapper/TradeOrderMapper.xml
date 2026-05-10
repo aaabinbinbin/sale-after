@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.TradeOrderMapper">
+
+    <!-- 通过订单号查询 -->
+    <select id="selectByOrderNo" resultType="com.aftersales.infra.entity.TradeOrder">
+        SELECT id, order_no, user_id, order_status,
+               total_amount, discount_amount, paid_amount,
+               paid_at, shipped_at, finished_at, closed_at,
+               created_at, updated_at
+        FROM trade_order
+        WHERE order_no = #{orderNo}
+    </select>
+
+    <select id="selectById" resultType="com.aftersales.infra.entity.TradeOrder">
+        SELECT id, order_no, user_id, order_status,
+               total_amount, discount_amount, paid_amount,
+               paid_at, shipped_at, finished_at, closed_at,
+               created_at, updated_at
+        FROM trade_order
+        WHERE id = #{id}
+    </select>
+
+    <!-- 用户订单列表 -->
+    <select id="selectByUserId" resultType="com.aftersales.infra.entity.TradeOrder">
+        SELECT id, order_no, user_id, order_status,
+               total_amount, discount_amount, paid_amount,
+               paid_at, shipped_at, finished_at, closed_at,
+               created_at, updated_at
+        FROM trade_order
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByUserId" resultType="long">
+        SELECT COUNT(1) FROM trade_order WHERE user_id = #{userId}
+    </select>
+
+    <!-- 全部订单（客服/管理员） -->
+    <select id="selectAll" resultType="com.aftersales.infra.entity.TradeOrder">
+        SELECT id, order_no, user_id, order_status,
+               total_amount, discount_amount, paid_amount,
+               paid_at, shipped_at, finished_at, closed_at,
+               created_at, updated_at
+        FROM trade_order
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(1) FROM trade_order
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO trade_order (order_no, user_id, order_status, total_amount, discount_amount, paid_amount,
+                                 paid_at, shipped_at, finished_at, closed_at, created_at, updated_at)
+        VALUES (#{orderNo}, #{userId}, #{orderStatus}, #{totalAmount}, #{discountAmount}, #{paidAmount},
+                #{paidAt}, #{shippedAt}, #{finishedAt}, #{closedAt}, NOW(), NOW())
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE trade_order SET order_status = #{orderStatus}, updated_at = NOW() WHERE id = #{id}
+    </update>
+</mapper>

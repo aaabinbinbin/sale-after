@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.aftersales</groupId>
+        <artifactId>after-sales-agent-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>after-sales-rag</artifactId>
+    <name>after-sales-rag</name>
+    <description>RAG 模块：知识文档、切片、Embedding、向量检索、评估</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-infra</artifactId>
+        </dependency>
+    </dependencies>
+</project>

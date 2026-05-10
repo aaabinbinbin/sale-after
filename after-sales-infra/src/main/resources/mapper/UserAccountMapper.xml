@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.UserAccountMapper">
+
+    <select id="selectByUsername" resultType="com.aftersales.infra.entity.UserAccount">
+        SELECT id, username, password_hash, role, phone, email, status, created_at, updated_at
+        FROM user_account
+        WHERE username = #{username}
+    </select>
+
+    <select id="selectById" resultType="com.aftersales.infra.entity.UserAccount">
+        SELECT id, username, password_hash, role, phone, email, status, created_at, updated_at
+        FROM user_account
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_account (username, password_hash, role, phone, email, status, created_at, updated_at)
+        VALUES (#{username}, #{passwordHash}, #{role}, #{phone}, #{email}, #{status}, NOW(), NOW())
+    </insert>
+</mapper>

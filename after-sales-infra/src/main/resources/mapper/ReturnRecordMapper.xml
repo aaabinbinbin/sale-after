@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.ReturnRecordMapper">
+
+    <select id="selectByReturnNo" resultType="com.aftersales.infra.entity.ReturnRecord">
+        SELECT * FROM return_record WHERE return_no = #{returnNo}
+    </select>
+
+    <select id="selectByAfterSalesId" resultType="com.aftersales.infra.entity.ReturnRecord">
+        SELECT * FROM return_record WHERE after_sales_id = #{afterSalesId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO return_record (return_no, after_sales_id, after_sales_no, return_status, created_at, updated_at)
+        VALUES (#{returnNo}, #{afterSalesId}, #{afterSalesNo}, #{returnStatus}, NOW(), NOW())
+    </insert>
+
+    <update id="updateLogistics">
+        UPDATE return_record
+        SET logistics_company = #{logisticsCompany}, logistics_no = #{logisticsNo},
+            return_status = #{returnStatus}, shipped_at = NOW(), updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateReceived">
+        UPDATE return_record
+        SET return_status = #{returnStatus}, receiver_id = #{receiverId},
+            receiver_remark = #{receiverRemark}, received_at = NOW(), updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

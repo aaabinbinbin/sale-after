@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.PaymentRecordMapper">
+
+    <select id="selectByOrderId" resultType="com.aftersales.infra.entity.PaymentRecord">
+        SELECT id, payment_no, order_id, order_no, user_id, pay_channel, pay_amount, pay_status, paid_at, created_at, updated_at
+        FROM payment_record WHERE order_id = #{orderId}
+    </select>
+
+    <select id="selectByOrderNo" resultType="com.aftersales.infra.entity.PaymentRecord">
+        SELECT id, payment_no, order_id, order_no, user_id, pay_channel, pay_amount, pay_status, paid_at, created_at, updated_at
+        FROM payment_record WHERE order_no = #{orderNo}
+    </select>
+
+    <select id="selectByPaymentNo" resultType="com.aftersales.infra.entity.PaymentRecord">
+        SELECT id, payment_no, order_id, order_no, user_id, pay_channel, pay_amount, pay_status, paid_at, created_at, updated_at
+        FROM payment_record WHERE payment_no = #{paymentNo}
+    </select>
+</mapper>

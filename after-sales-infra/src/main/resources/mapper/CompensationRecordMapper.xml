@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.CompensationRecordMapper">
+
+    <select id="selectByCompensationNo" resultType="com.aftersales.infra.entity.CompensationRecord">
+        SELECT * FROM compensation_record WHERE compensation_no = #{compensationNo}
+    </select>
+
+    <select id="selectByAfterSalesId" resultType="com.aftersales.infra.entity.CompensationRecord">
+        SELECT * FROM compensation_record WHERE after_sales_id = #{afterSalesId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO compensation_record (compensation_no, after_sales_id, after_sales_no, compensation_type, compensation_amount, compensation_status, created_at, updated_at)
+        VALUES (#{compensationNo}, #{afterSalesId}, #{afterSalesNo}, #{compensationType}, #{compensationAmount}, #{compensationStatus}, NOW(), NOW())
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE compensation_record
+        SET compensation_status = #{compensationStatus}, external_grant_no = #{externalGrantNo},
+            failure_reason = #{failureReason}, granted_at = IF(#{compensationStatus} = 'SUCCESS', NOW(), granted_at), updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+</mapper>

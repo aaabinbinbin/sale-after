@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.AgentConfirmActionMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_confirm_action (confirm_token, trace_id, user_id, action_type, action_payload, status, expire_at, created_at, updated_at)
+        VALUES (#{confirmToken}, #{traceId}, #{userId}, #{actionType}, #{actionPayload}, #{status}, #{expireAt}, NOW(), NOW())
+    </insert>
+    <select id="selectByToken" resultType="com.aftersales.infra.entity.AgentConfirmAction">
+        SELECT * FROM agent_confirm_action WHERE confirm_token = #{confirmToken}
+    </select>
+    <update id="updateStatus">
+        UPDATE agent_confirm_action SET status = #{status}, confirmed_at = NOW(), updated_at = NOW()
+        WHERE confirm_token = #{confirmToken}
+    </update>
+</mapper>
