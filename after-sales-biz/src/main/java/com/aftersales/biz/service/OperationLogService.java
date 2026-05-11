@@ -46,6 +46,28 @@ public class OperationLogService {
         logMapper.insert(log);
     }
 
+    /**
+     * 记录风控拦截日志（无售后单 ID 时使用）。
+     */
+    public void recordRiskIntercept(String userId, String orderNo, String riskLevel,
+                                     int riskScore, List<String> reasons) {
+        AfterSalesOperationLog log = new AfterSalesOperationLog();
+        log.setAfterSalesId(0L);
+        log.setAfterSalesNo("RISK_" + orderNo);
+        log.setOperatorId(parseLong(userId));
+        log.setOperatorRole("RISK_ENGINE");
+        log.setOperationType("RISK_INTERCEPT");
+        log.setFromStatus("N/A");
+        log.setToStatus(riskLevel);
+        log.setOperationDetail("风险评分:" + riskScore + " 原因:" + String.join(";", reasons));
+        logMapper.insert(log);
+    }
+
+    private Long parseLong(String s) {
+        try { return s != null ? Long.valueOf(s) : 0L; }
+        catch (NumberFormatException e) { return 0L; }
+    }
+
     /** 查询售后操作日志 */
     public List<AfterSalesOperationLog> listByAfterSalesId(Long afterSalesId) {
         return logMapper.selectByAfterSalesId(afterSalesId);

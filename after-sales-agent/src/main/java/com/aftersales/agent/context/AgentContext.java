@@ -1,10 +1,19 @@
 package com.aftersales.agent.context;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.*;
 
 /**
  * Agent 执行上下文。贯穿整个请求生命周期，每个组件向自己负责的字段写入数据。
  */
+@Builder
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class AgentContext {
 
     // ====== 固定字段（请求进入时填充） ======

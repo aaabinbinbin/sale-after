@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aftersales.infra.mapper.AfterSalesCommentMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO after_sales_comment (after_sales_id, after_sales_no, commenter_id, commenter_role, content, internal_only, created_at)
+        VALUES (#{afterSalesId}, #{afterSalesNo}, #{commenterId}, #{commenterRole}, #{content}, #{internalOnly}, NOW())
+    </insert>
+
+    <select id="selectByAfterSalesId" resultType="com.aftersales.infra.entity.AfterSalesComment">
+        SELECT id, after_sales_id, after_sales_no, commenter_id, commenter_role, content, internal_only, created_at
+        FROM after_sales_comment WHERE after_sales_id = #{afterSalesId} ORDER BY created_at ASC
+    </select>
+
+    <select id="selectByAfterSalesNo" resultType="com.aftersales.infra.entity.AfterSalesComment">
+        SELECT id, after_sales_id, after_sales_no, commenter_id, commenter_role, content, internal_only, created_at
+        FROM after_sales_comment WHERE after_sales_no = #{afterSalesNo} ORDER BY created_at ASC
+    </select>
+</mapper>

@@ -37,3 +37,6 @@ nohup.out
 
 # claude
 .claude
+
+# fronted
+frontend/

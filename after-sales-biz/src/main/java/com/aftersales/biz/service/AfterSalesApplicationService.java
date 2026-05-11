@@ -8,9 +8,11 @@ import com.aftersales.common.exception.ErrorCode;
 import com.aftersales.common.util.IdGenerator;
 import com.aftersales.common.util.JsonUtils;
 import com.aftersales.domain.eligibility.*;
+import com.aftersales.domain.event.AfterSalesCreatedEvent;
 import com.aftersales.domain.statemachine.AfterSalesStateMachine;
 import com.aftersales.infra.entity.*;
 import com.aftersales.infra.mapper.*;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class AfterSalesApplicationService {
     private final TradeOrderItemMapper tradeOrderItemMapper;
     private final AfterSalesOrderMapper afterSalesOrderMapper;
     private final AfterSalesItemMapper afterSalesItemMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AfterSalesApplicationService(IdempotencyService idempotencyService,
                                          AfterSalesEligibilityService eligibilityService,
@@ -43,7 +46,8 @@ public class AfterSalesApplicationService {
                                          TradeOrderMapper tradeOrderMapper,
                                          TradeOrderItemMapper tradeOrderItemMapper,
                                          AfterSalesOrderMapper afterSalesOrderMapper,
-                                         AfterSalesItemMapper afterSalesItemMapper) {
+                                         AfterSalesItemMapper afterSalesItemMapper,
+                                         ApplicationEventPublisher eventPublisher) {
         this.idempotencyService = idempotencyService;
         this.eligibilityService = eligibilityService;
         this.stateMachine = stateMachine;
@@ -52,6 +56,7 @@ public class AfterSalesApplicationService {
         this.tradeOrderItemMapper = tradeOrderItemMapper;
         this.afterSalesOrderMapper = afterSalesOrderMapper;
         this.afterSalesItemMapper = afterSalesItemMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -180,6 +185,15 @@ public class AfterSalesApplicationService {
         respData.put("status", AfterSalesStatus.PENDING_REVIEW.getCode());
         String respJson = JsonUtils.toJson(respData);
         idempotencyService.markSuccess(idempotencyKey, respJson, asOrder.getAfterSalesNo());
+
+        // 11. 发布售后创建事件
+        eventPublisher.publishEvent(AfterSalesCreatedEvent.builder()
+                .afterSalesNo(asOrder.getAfterSalesNo())
+                .afterSalesId(asOrder.getId())
+                .afterSalesType(afterSalesType)
+                .userId(String.valueOf(UserContext.getUserId()))
+                .orderNo(orderNo)
+                .build());
 
         return respData;
     }

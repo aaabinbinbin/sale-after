@@ -177,7 +177,11 @@ public class AgentIntentRouter {
         if (text == null) return 0;
         int chars = 0, other = 0;
         for (char c : text.toCharArray()) {
-            if (Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN) chars++; else other++;
+            if (Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN) {
+                chars++;
+            } else {
+                other++;
+            }
         }
         return (int) (chars / 1.5 + other / 4.0);
     }

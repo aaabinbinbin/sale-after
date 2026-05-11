@@ -72,9 +72,13 @@ public class AgentFacade {
 
         AgentContext ctx = new AgentContext();
         ctx.setTraceId(trace.getTraceId());
-        ctx.setUserId(userId); ctx.setUsername(username); ctx.setRole(role);
-        ctx.setConversationId(conversationId); ctx.setUserInput(userInput);
-        ctx.setOrderNo(orderNo); ctx.setAfterSalesNo(afterSalesNo);
+        ctx.setUserId(userId);
+        ctx.setUsername(username);
+        ctx.setRole(role);
+        ctx.setConversationId(conversationId);
+        ctx.setUserInput(userInput);
+        ctx.setOrderNo(orderNo);
+        ctx.setAfterSalesNo(afterSalesNo);
 
         try {
             var intentResult = intentRouter.route(ctx);

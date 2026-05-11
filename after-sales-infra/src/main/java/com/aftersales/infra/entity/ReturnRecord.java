@@ -16,7 +16,11 @@ public class ReturnRecord {
     private Long receiverId;
     private String receiverRemark;
     private LocalDateTime createdAt;
+    private Long version; // 乐观锁版本
     private LocalDateTime updatedAt;
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
