@@ -2,187 +2,269 @@ package com.aftersales.agent.facade;
 
 import com.aftersales.agent.confirm.AgentConfirmService;
 import com.aftersales.agent.context.AgentContext;
-import com.aftersales.agent.planner.AgentPlanStep;
-import com.aftersales.agent.planner.AgentPlanner;
+import com.aftersales.agent.loop.AgentLoopService;
+import com.aftersales.agent.orchestrator.OrchestrationEngine;
+import com.aftersales.agent.planner.AgentPlan;
 import com.aftersales.agent.risk.AgentRiskGuard;
 import com.aftersales.agent.router.AgentIntentRouter;
-import com.aftersales.agent.skill.AgentSkill;
-import com.aftersales.agent.skill.SkillRegistry;
 import com.aftersales.agent.trace.AgentTraceService;
-import com.aftersales.common.enums.AgentRiskLevel;
-import com.aftersales.common.util.JsonUtils;
 import com.aftersales.infra.entity.AgentTrace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Agent 主入口 Facade。
- *
- * 负责创建 Trace、构建上下文、意图识别、技能编排、风险判断、确认生成和 Trace 记录。
+ * Agent 主入口 Facade（外观模式）。
  */
 @Service
 public class AgentFacade {
 
     private static final Logger log = LoggerFactory.getLogger(AgentFacade.class);
-
+    private static final String MODEL = "qwen3.6-flash";
     private final AgentIntentRouter intentRouter;
-    private final AgentPlanner planner;
-    private final SkillRegistry skillRegistry;
+    private final AgentLoopService loopService;
+    private final OrchestrationEngine orchestrationEngine;
     private final AgentRiskGuard riskGuard;
     private final AgentConfirmService confirmService;
     private final AgentTraceService traceService;
+    private final ChatClient chatClient;
 
-    public AgentFacade(AgentIntentRouter intentRouter, AgentPlanner planner,
-                        SkillRegistry skillRegistry, AgentRiskGuard riskGuard,
-                        AgentConfirmService confirmService, AgentTraceService traceService) {
+    private static final String SUMMARY_PROMPT = """
+            你是电商售后助手。根据系统执行结果，用自然语言回复用户。
+
+            要求：
+            - 简洁、亲切、专业
+            - 如果执行了售后相关的操作，明确告知操作结果
+            - 如果有下一步需要用户做的，清晰说明
+            - 不要编造没有发生过的事实
+
+            用户原始输入：%s
+            意图：%s
+            执行结果摘要：%s
+            各步骤结果：
+            %s
+
+            请生成面向用户的自然语言回复：""";
+
+    public AgentFacade(AgentIntentRouter intentRouter, AgentLoopService loopService,
+                        OrchestrationEngine orchestrationEngine, AgentRiskGuard riskGuard,
+                        AgentConfirmService confirmService, AgentTraceService traceService,
+                        ChatClient chatClient) {
         this.intentRouter = intentRouter;
-        this.planner = planner;
-        this.skillRegistry = skillRegistry;
+        this.loopService = loopService;
+        this.orchestrationEngine = orchestrationEngine;
         this.riskGuard = riskGuard;
         this.confirmService = confirmService;
         this.traceService = traceService;
+        this.chatClient = chatClient;
     }
 
-    /**
-     * 处理 Agent 对话（非流式）。
-     *
-     * @param userId          用户ID
-     * @param username        用户名
-     * @param role            角色
-     * @param conversationId  会话ID
-     * @param userInput       用户输入
-     * @param orderNo         关联订单号（可选）
-     * @param afterSalesNo    关联售后单号（可选）
-     * @return 对话结果
-     */
+    /** 处理 Agent 对话 */
     public Map<String, Object> chat(Long userId, String username, String role,
                                      String conversationId, String userInput,
                                      String orderNo, String afterSalesNo) {
         long startTime = System.currentTimeMillis();
-
-        // 1. 创建 Trace
         AgentTrace trace = traceService.createTrace(userId, conversationId, userInput);
 
-        // 2. 构建上下文
-        AgentContext ctx = buildContext(trace.getTraceId(), userId, username, role,
-                conversationId, userInput, orderNo, afterSalesNo);
+        AgentContext ctx = new AgentContext();
+        ctx.setTraceId(trace.getTraceId());
+        ctx.setUserId(userId); ctx.setUsername(username); ctx.setRole(role);
+        ctx.setConversationId(conversationId); ctx.setUserInput(userInput);
+        ctx.setOrderNo(orderNo); ctx.setAfterSalesNo(afterSalesNo);
 
         try {
-            // 3. 意图识别
             var intentResult = intentRouter.route(ctx);
             ctx.setIntent(intentResult.intent());
-            log.info("Agent 意图识别 traceId={} intent={} confidence={}", trace.getTraceId(),
-                    intentResult.intent(), intentResult.confidence());
 
-            // 4. 构建计划
-            var plan = planner.buildPlan(ctx, intentResult.intent(), intentResult.needRag(), intentResult.needTool());
+            var loopResult = loopService.run(ctx, intentResult.intent(),
+                    intentResult.confidence(), intentResult.entities());
 
-            // 5. 执行技能
-            List<Map<String, Object>> stepResults = new ArrayList<>();
-            for (AgentPlanStep step : plan.getSteps()) {
-                AgentSkill skill = skillRegistry.get(step.getSkill());
-                var result = skill.execute(ctx, step);
-                stepResults.add(Map.of("skill", step.getSkill(), "success", result.success(), "data", result.data()));
-                traceService.recordToolCall(trace.getTraceId(), step.getSkill(),
-                        JsonUtils.toJson(ctx), result.success(), result.error());
+            if (loopResult.escalate()) {
+                traceService.completeTrace(trace.getTraceId(), intentResult.intent(), "LOW",
+                        "转人工: " + loopResult.escalateReason(), "ESCALATED", null,
+                        System.currentTimeMillis() - startTime);
+                return Map.of("traceId", trace.getTraceId(), "intent", "ESCALATED",
+                        "answer", "已转接人工客服处理", "escalated", true, "rounds", loopResult.rounds());
             }
 
-            // 6. 风险评估
-            AgentRiskLevel riskLevel = riskGuard.assess(intentResult.intent());
+            AgentPlan plan = loopResult.plan();
+            var execResult = orchestrationEngine.execute(plan, ctx);
+            var assessment = riskGuard.assessQuick(plan, intentResult.confidence());
 
-            // 7. 生成回答
-            String answer = buildAnswer(intentResult.intent(), stepResults, riskLevel);
-            String confirmToken = null;
-
-            // 8. 高风险动作生成 confirmToken
-            if (riskLevel.requiresConfirmation()) {
-                confirmToken = confirmService.generateToken(trace.getTraceId(),
-                        mapIntentToAction(intentResult.intent()), buildConfirmPayload(ctx), 15);
+            if (!assessment.canAutoExecute() || execResult.hasConfirmRequired()) {
+                String confirmToken = confirmService.generateToken(trace.getTraceId(),
+                        plan.getIntent(), Map.of("summary", plan.getSummary()), 15, userId);
+                traceService.completeTrace(trace.getTraceId(), intentResult.intent(), "HIGH",
+                        plan.getSummary(), "WAIT_CONFIRM", null, System.currentTimeMillis() - startTime);
+                return Map.of("traceId", trace.getTraceId(), "intent", intentResult.intent(),
+                        "riskLevel", "HIGH", "answer", plan.getSummary(), "requiresConfirmation", true,
+                        "confirmToken", confirmToken);
             }
 
-            // 9. 完成 Trace
-            long latency = System.currentTimeMillis() - startTime;
-            traceService.completeTrace(trace.getTraceId(), intentResult.intent(), riskLevel.getCode(),
-                    answer, "SUCCESS", null, latency);
+            // === LLM 生成自然语言回复 ===
+            String answer = generateFinalAnswer(ctx, intentResult.intent(), plan, execResult.message());
+            traceService.completeTrace(trace.getTraceId(), intentResult.intent(), "LOW",
+                    answer, "SUCCESS", null, System.currentTimeMillis() - startTime);
+            return Map.of("traceId", trace.getTraceId(), "intent", intentResult.intent(),
+                    "riskLevel", "LOW", "answer", answer, "requiresConfirmation", false,
+                    "skillResults", ctx.getSkillResults());
 
-            // 10. 构建返回
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("traceId", trace.getTraceId());
-            result.put("intent", intentResult.intent());
-            result.put("riskLevel", riskLevel.getCode());
-            result.put("answer", answer);
-            result.put("requiresConfirmation", riskLevel.requiresConfirmation());
-            if (confirmToken != null) {
-                result.put("confirmToken", confirmToken);
-                result.put("suggestedAction", Map.of("actionType", mapIntentToAction(intentResult.intent())));
-            }
-            return result;
         } catch (Exception e) {
-            log.error("Agent 处理异常 traceId={}", trace.getTraceId(), e);
-            long latency = System.currentTimeMillis() - startTime;
-            traceService.completeTrace(trace.getTraceId(), "UNKNOWN", "LOW", null, "ERROR", e.getMessage(), latency);
-
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("traceId", trace.getTraceId());
-            result.put("intent", "UNKNOWN");
-            result.put("answer", "抱歉，处理你的请求时出现了问题，请稍后重试。");
-            result.put("requiresConfirmation", false);
-            return result;
+            log.error("Agent 异常 traceId={}", trace.getTraceId(), e);
+            traceService.completeTrace(trace.getTraceId(), "UNKNOWN", "LOW", null,
+                    "ERROR", e.getMessage(), System.currentTimeMillis() - startTime);
+            return Map.of("traceId", trace.getTraceId(), "answer", "处理异常，请稍后重试",
+                    "error", e.getMessage(), "requiresConfirmation", false);
         }
     }
 
-    private AgentContext buildContext(String traceId, Long userId, String username, String role,
-                                       String conversationId, String userInput, String orderNo, String afterSalesNo) {
+    /** LLM 基于执行结果生成自然语言回复 */
+    private String generateFinalAnswer(AgentContext ctx, String intent, AgentPlan plan, String execMessage) {
+        String skillSummary = ctx.getSkillResults().entrySet().stream()
+                .map(e -> "- " + e.getKey() + ": " + summarizeValue(e.getValue()))
+                .collect(Collectors.joining("\n"));
+        if (skillSummary.isEmpty()) skillSummary = execMessage;
+
+        String prompt = String.format(SUMMARY_PROMPT,
+                ctx.getUserInput(), intent, plan.getSummary(), skillSummary);
+
+        try {
+            long start = System.currentTimeMillis();
+            var chatResp = chatClient.prompt().user(prompt).call().chatResponse();
+            String answer = chatResp.getResult().getOutput().getContent();
+            long latency = System.currentTimeMillis() - start;
+
+            int[] tokens = extractUsage(chatResp, prompt, answer);
+            traceService.recordLlmCall(ctx.getTraceId(), "FINAL_ANSWER", MODEL, 1,
+                    "", prompt, answer, tokens[0], tokens[1], latency, true, null);
+
+            log.info("LLM 最终回复生成: {}", answer);
+            return answer;
+        } catch (Exception e) {
+            log.warn("LLM 最终回复生成失败: {}", e.getMessage());
+            return plan.getSummary() != null ? plan.getSummary() : execMessage;
+        }
+    }
+
+    /** 将 Skill 执行结果压缩为一行摘要 */
+    private String summarizeValue(Object value) {
+        if (value instanceof Map<?, ?> m) {
+            Set<?> keys = m.keySet();
+            if (keys.size() <= 3) return keys.toString();
+            return "[" + keys.size() + " fields]";
+        }
+        if (value instanceof String s) return s.length() > 100 ? s.substring(0, 100) + "..." : s;
+        return value != null ? value.getClass().getSimpleName() : "null";
+    }
+
+    private int[] extractUsage(org.springframework.ai.chat.model.ChatResponse resp, String in, String out) {
+        try {
+            var usage = resp.getMetadata().getUsage();
+            if (usage != null) return new int[]{usage.getPromptTokens().intValue(), usage.getGenerationTokens().intValue()};
+        } catch (Exception ignored) {}
+        return new int[]{estimateTokens(in), estimateTokens(out)};
+    }
+
+    private int estimateTokens(String text) {
+        if (text == null) return 0;
+        int chars = 0, other = 0;
+        for (char c : text.toCharArray()) {
+            if (Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN) chars++; else other++;
+        }
+        return (int) (chars / 1.5 + other / 4.0);
+    }
+
+    /** 带回调的流式对话（SSE 用） */
+    public Map<String, Object> chatStream(Long userId, String username, String role,
+                                           String conversationId, String userInput,
+                                           String orderNo, String afterSalesNo,
+                                           StreamCallback callback) {
+        long startTime = System.currentTimeMillis();
+        AgentTrace trace = traceService.createTrace(userId, conversationId, userInput);
+
         AgentContext ctx = new AgentContext();
-        ctx.setTraceId(traceId);
-        ctx.setUserId(userId);
-        ctx.setUsername(username);
-        ctx.setRole(role);
-        ctx.setConversationId(conversationId);
-        ctx.setUserInput(userInput);
-        ctx.setOrderNo(orderNo);
-        ctx.setAfterSalesNo(afterSalesNo);
-        return ctx;
-    }
+        ctx.setTraceId(trace.getTraceId());
+        ctx.setUserId(userId); ctx.setUsername(username); ctx.setRole(role);
+        ctx.setConversationId(conversationId); ctx.setUserInput(userInput);
+        ctx.setOrderNo(orderNo); ctx.setAfterSalesNo(afterSalesNo);
 
-    private String buildAnswer(String intent, List<Map<String, Object>> stepResults, AgentRiskLevel riskLevel) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("根据分析，");
+        try {
+            callback.onTrace(trace.getTraceId());
 
-        for (Map<String, Object> sr : stepResults) {
-            if (Boolean.TRUE.equals(sr.get("success"))) {
-                sb.append("已").append(sr.get("skill")).append("。");
+            var intentResult = intentRouter.route(ctx);
+            ctx.setIntent(intentResult.intent());
+            callback.onThought("意图识别: " + intentResult.intent() + " (置信度:" +
+                    String.format("%.2f", intentResult.confidence()) + ")");
+
+            var loopResult = loopService.run(ctx, intentResult.intent(),
+                    intentResult.confidence(), intentResult.entities());
+
+            if (loopResult.escalate()) {
+                callback.onThought("转人工: " + loopResult.escalateReason());
+                traceService.completeTrace(trace.getTraceId(), intentResult.intent(), "LOW",
+                        "转人工: " + loopResult.escalateReason(), "ESCALATED", null,
+                        System.currentTimeMillis() - startTime);
+                callback.onDone(trace.getTraceId());
+                return Map.of("traceId", trace.getTraceId(), "intent", "ESCALATED",
+                        "answer", "已转接人工客服处理", "escalated", true);
             }
+
+            AgentPlan plan = loopResult.plan();
+            callback.onThought("执行计划: " + plan.getSummary());
+
+            var execResult = orchestrationEngine.execute(plan, ctx);
+            for (var step : execResult.stepResults()) {
+                callback.onTool(step.skill(), step.success() ? "SUCCESS" : "FAILED");
+            }
+
+            var assessment = riskGuard.assessQuick(plan, intentResult.confidence());
+
+            if (!assessment.canAutoExecute() || execResult.hasConfirmRequired()) {
+                String confirmToken = confirmService.generateToken(trace.getTraceId(),
+                        plan.getIntent(), Map.of("summary", plan.getSummary()), 15, userId);
+                callback.onConfirm(confirmToken, plan.getIntent());
+                traceService.completeTrace(trace.getTraceId(), intentResult.intent(), "HIGH",
+                        plan.getSummary(), "WAIT_CONFIRM", null, System.currentTimeMillis() - startTime);
+                callback.onDone(trace.getTraceId());
+                return Map.of("traceId", trace.getTraceId(), "intent", intentResult.intent(),
+                        "riskLevel", "HIGH", "answer", plan.getSummary(), "requiresConfirmation", true,
+                        "confirmToken", confirmToken);
+            }
+
+            String answer = generateFinalAnswer(ctx, intentResult.intent(), plan, execResult.message());
+            callback.onDelta(answer);
+            traceService.completeTrace(trace.getTraceId(), intentResult.intent(), "LOW",
+                    answer, "SUCCESS", null, System.currentTimeMillis() - startTime);
+            callback.onDone(trace.getTraceId());
+            return Map.of("traceId", trace.getTraceId(), "intent", intentResult.intent(),
+                    "riskLevel", "LOW", "answer", answer, "requiresConfirmation", false);
+
+        } catch (Exception e) {
+            log.error("Agent 异常 traceId={}", trace.getTraceId(), e);
+            callback.onError(e.getMessage());
+            callback.onDone(trace.getTraceId());
+            traceService.completeTrace(trace.getTraceId(), "UNKNOWN", "LOW", null,
+                    "ERROR", e.getMessage(), System.currentTimeMillis() - startTime);
+            return Map.of("traceId", trace.getTraceId(), "answer", "处理异常",
+                    "error", e.getMessage(), "requiresConfirmation", false);
         }
-
-        if (riskLevel.requiresConfirmation()) {
-            sb.append("该操作属于高风险动作，请确认后执行。");
-        }
-        return sb.toString();
     }
 
-    private String mapIntentToAction(String intent) {
-        return switch (intent) {
-            case "CREATE_AFTER_SALES_APPLICATION" -> "CREATE_AFTER_SALES_APPLICATION";
-            case "EXECUTE_REFUND" -> "EXECUTE_REFUND";
-            case "GRANT_COMPENSATION" -> "GRANT_COMPENSATION";
-            default -> intent;
-        };
+    /** SSE 流式回调接口 */
+    public interface StreamCallback {
+        void onTrace(String traceId);
+        void onThought(String content);
+        void onTool(String toolName, String status);
+        void onDelta(String content);
+        void onConfirm(String confirmToken, String actionType);
+        void onError(String message);
+        void onDone(String traceId);
     }
 
-    private Map<String, Object> buildConfirmPayload(AgentContext ctx) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("orderNo", ctx.getOrderNo());
-        payload.put("afterSalesNo", ctx.getAfterSalesNo());
-        return payload;
-    }
-
-    /** Getter for traceService */
     public AgentTraceService getTraceService() { return traceService; }
-
-    /** Getter for confirmService */
     public AgentConfirmService getConfirmService() { return confirmService; }
 }

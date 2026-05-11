@@ -27,5 +27,10 @@
             <groupId>com.aftersales</groupId>
             <artifactId>after-sales-infra</artifactId>
         </dependency>
+        <!-- 售后完成 → 异步知识构建需要 RAG 模块的 Producer -->
+        <dependency>
+            <groupId>com.aftersales</groupId>
+            <artifactId>after-sales-rag</artifactId>
+        </dependency>
     </dependencies>
 </project>

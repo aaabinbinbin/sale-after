@@ -3,12 +3,11 @@ package com.aftersales.agent.context;
 import java.util.*;
 
 /**
- * Agent 执行上下文。
- *
- * 包含当前用户信息、输入、订单/售后摘要等。
+ * Agent 执行上下文。贯穿整个请求生命周期，每个组件向自己负责的字段写入数据。
  */
 public class AgentContext {
 
+    // ====== 固定字段（请求进入时填充） ======
     private String traceId;
     private String conversationId;
     private Long userId;
@@ -17,11 +16,24 @@ public class AgentContext {
     private String userInput;
     private String orderNo;
     private String afterSalesNo;
+
+    // ====== Step 1 填充：IntentRouter 输出 ======
     private String intent;
     private String riskLevel;
 
-    // 扩展数据
+    // ====== Step 3-4 填充：按需获取的上下文数据 ======
+    private Map<String, Object> contextData = new LinkedHashMap<>();
+
+    // ====== Step 5 填充：每个 Skill 的执行结果 ======
+    private Map<String, Object> skillResults = new LinkedHashMap<>();
+
+    // ====== Agent Loop 历史记录 ======
+    private List<Map<String, Object>> actionHistory = new ArrayList<>();
+
+    // ====== 扩展字段 ======
     private Map<String, Object> extra = new LinkedHashMap<>();
+
+    // ====== getter / setter ======
 
     public String getTraceId() { return traceId; }
     public void setTraceId(String traceId) { this.traceId = traceId; }
@@ -53,9 +65,25 @@ public class AgentContext {
     public String getRiskLevel() { return riskLevel; }
     public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
 
+    public Map<String, Object> getContextData() { return contextData; }
+    public void setContextData(Map<String, Object> contextData) { this.contextData = contextData; }
+    public void putContextData(String key, Object value) { this.contextData.put(key, value); }
+
+    public Map<String, Object> getSkillResults() { return skillResults; }
+    public void setSkillResults(Map<String, Object> skillResults) { this.skillResults = skillResults; }
+
+    public List<Map<String, Object>> getActionHistory() { return actionHistory; }
+    public void setActionHistory(List<Map<String, Object>> actionHistory) { this.actionHistory = actionHistory; }
+    public void addActionToHistory(String action, Object result) {
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("action", action);
+        record.put("result", result);
+        record.put("timestamp", System.currentTimeMillis());
+        this.actionHistory.add(record);
+    }
+
     public Map<String, Object> getExtra() { return extra; }
     public void setExtra(Map<String, Object> extra) { this.extra = extra; }
-
     public void putExtra(String key, Object value) { this.extra.put(key, value); }
     public Object getExtra(String key) { return extra.get(key); }
 }

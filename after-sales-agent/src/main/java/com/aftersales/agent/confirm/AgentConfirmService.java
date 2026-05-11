@@ -43,12 +43,12 @@ public class AgentConfirmService {
      * @param ttlMinutes   过期时间（分钟）
      * @return confirmToken
      */
-    public String generateToken(String traceId, String actionType, Map<String, Object> actionPayload, int ttlMinutes) {
+    public String generateToken(String traceId, String actionType, Map<String, Object> actionPayload, int ttlMinutes, Long userId) {
         String token = IdGenerator.genConfirmToken();
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("confirmToken", token);
         payload.put("traceId", traceId);
-        payload.put("userId", UserContext.getUserId());
+        payload.put("userId", userId != null ? userId : UserContext.getUserId());
         payload.put("actionType", actionType);
         payload.put("payload", actionPayload);
         payload.put("expireAt", LocalDateTime.now().plusMinutes(ttlMinutes).toString());

@@ -3,7 +3,7 @@ services:
     image: redis:7
     container_name: after_sales_redis
     ports:
-      - "6379:6379"
+      - "16379:6379"
     command: >
       redis-server
         --requirepass 123456

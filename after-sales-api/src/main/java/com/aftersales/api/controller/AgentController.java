@@ -45,14 +45,11 @@ public class AgentController {
     }
 
     /**
-     * Agent SSE 流式对话。
-     *
-     * 事件类型：trace, thought, tool, retrieve, delta, confirm, error, done
+     * Agent SSE 流式对话。实时推送 trace → thought → tool → delta → confirm → done。
      */
     @PostMapping(path = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chatStream(@RequestBody Map<String, Object> body) {
-        SseEmitter emitter = new SseEmitter(300_000L); // 5分钟超时
-
+        SseEmitter emitter = new SseEmitter(300_000L);
         Long userId = UserContext.getUserId();
         String username = UserContext.get().getUsername();
         String role = UserContext.getRole();
@@ -61,48 +58,42 @@ public class AgentController {
         String orderNo = (String) body.get("orderNo");
         String afterSalesNo = (String) body.get("afterSalesNo");
 
-        // 异步处理，通过 SSE 推送事件
         new Thread(() -> {
             try {
-                // 1. trace 事件
-                String traceId = "tr-" + System.currentTimeMillis();
-                sendSseEvent(emitter, "trace", Map.of("traceId", traceId));
-
-                // 2. thought 事件
-                sendSseEvent(emitter, "thought", Map.of("content", "正在分析你的售后诉求..."));
-
-                // 3. 调用 AgentFacade
-                Map<String, Object> result = agentFacade.chat(userId, username, role, conversationId,
-                        userInput, orderNo, afterSalesNo);
-
-                // 4. tool 事件（模拟工具调用过程）
-                sendSseEvent(emitter, "tool", Map.of("toolName", "IntentRouter", "status", "SUCCESS"));
-
-                // 5. delta 事件
-                String answer = (String) result.get("answer");
-                sendSseEvent(emitter, "delta", Map.of("content", answer));
-
-                // 6. confirm 事件（如果需要确认）
-                if (Boolean.TRUE.equals(result.get("requiresConfirmation"))) {
-                    sendSseEvent(emitter, "confirm", Map.of(
-                            "confirmToken", result.get("confirmToken"),
-                            "actionType", ((Map<?, ?>) result.get("suggestedAction")).get("actionType")));
-                }
-
-                // 7. done 事件
-                sendSseEvent(emitter, "done", Map.of("traceId", result.get("traceId")));
-                emitter.complete();
+                agentFacade.chatStream(userId, username, role, conversationId,
+                        userInput, orderNo, afterSalesNo,
+                        new AgentFacade.StreamCallback() {
+                            public void onTrace(String traceId) {
+                                safeSend(emitter, "trace", Map.of("traceId", traceId)); }
+                            public void onThought(String content) {
+                                safeSend(emitter, "thought", Map.of("content", content)); }
+                            public void onTool(String toolName, String status) {
+                                safeSend(emitter, "tool", Map.of("toolName", toolName, "status", status)); }
+                            public void onDelta(String content) {
+                                safeSend(emitter, "delta", Map.of("content", content)); }
+                            public void onConfirm(String confirmToken, String actionType) {
+                                safeSend(emitter, "confirm", Map.of("confirmToken", confirmToken, "actionType", actionType)); }
+                            public void onError(String message) {
+                                safeSend(emitter, "error", Map.of("message", message)); }
+                            public void onDone(String traceId) {
+                                safeSend(emitter, "done", Map.of("traceId", traceId));
+                                emitter.complete();
+                            }
+                        });
             } catch (Exception e) {
-                try {
-                    sendSseEvent(emitter, "error", Map.of("message", e.getMessage()));
-                    emitter.complete();
-                } catch (IOException ex) {
-                    emitter.completeWithError(ex);
-                }
+                safeSend(emitter, "error", Map.of("message", e.getMessage()));
+                emitter.complete();
             }
         }).start();
-
         return emitter;
+    }
+
+    private void safeSend(SseEmitter emitter, String event, Object data) {
+        try {
+            emitter.send(SseEmitter.event().name(event).data(
+                    com.aftersales.common.util.JsonUtils.toJson(data),
+                    MediaType.APPLICATION_JSON));
+        } catch (Exception ignored) {}
     }
 
     /**

@@ -26,9 +26,9 @@ public class AfterSalesStateMachine {
         TRANSITIONS.put(AfterSalesStatus.CREATED,
                 Set.of(AfterSalesStatus.PENDING_REVIEW, AfterSalesStatus.CANCELLED));
 
-        // 待审核 -> 审核通过 / 审核拒绝 / 需补充信息
+        // 待审核 -> 审核通过 / 审核拒绝 / 需补充信息 / 已取消（用户主动取消）
         TRANSITIONS.put(AfterSalesStatus.PENDING_REVIEW,
-                Set.of(AfterSalesStatus.APPROVED, AfterSalesStatus.REJECTED, AfterSalesStatus.NEED_MORE_INFO));
+                Set.of(AfterSalesStatus.APPROVED, AfterSalesStatus.REJECTED, AfterSalesStatus.NEED_MORE_INFO, AfterSalesStatus.CANCELLED));
 
         // 需补充信息 -> 待审核（补充后重新审核）
         TRANSITIONS.put(AfterSalesStatus.NEED_MORE_INFO,
@@ -107,6 +107,9 @@ public class AfterSalesStateMachine {
 
     /**
      * 校验审核通过流转是否合法。
+     *
+     * 逻辑上经过两步：PENDING_REVIEW → APPROVED → 后续处理状态。
+     * DB 中不存 APPROVED 中间态，但状态机校验走完整链路。
      */
     public void checkApproveTransition(String currentStatus, String afterSalesType) {
         AfterSalesStatus cur = AfterSalesStatus.fromCode(currentStatus);
@@ -114,7 +117,10 @@ public class AfterSalesStateMachine {
         if (cur == null || type == null) {
             throw new BusinessException(ErrorCode.AFTER_SALES_STATUS_INVALID, "状态或售后类型无效");
         }
+        // 第一步：PENDING_REVIEW → APPROVED
+        checkTransition(cur, AfterSalesStatus.APPROVED);
+        // 第二步：APPROVED → 各售后类型对应的后续状态
         AfterSalesStatus next = getPostApproveStatus(type);
-        checkTransition(cur, next);
+        checkTransition(AfterSalesStatus.APPROVED, next);
     }
 }

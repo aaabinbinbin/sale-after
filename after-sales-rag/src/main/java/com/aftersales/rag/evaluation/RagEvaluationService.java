@@ -41,11 +41,12 @@ public class RagEvaluationService {
 
         for (var question : evalDataset) {
             // 解析期望文档编号
-            List<String> expectedDocs = Arrays.asList(question.get("expectedDocNos").toString().split(","));
+            String expectedDocNos = (String) question.get("expectedDocNos");
+            List<String> expectedDocs = Arrays.asList(expectedDocNos.split(","));
 
             // 检索
-            List<Map<String, Object>> results = retrievalService.search(
-                    question.get("question"), 5, Map.of());
+            String queryText = (String) question.get("question");
+            List<Map<String, Object>> results = retrievalService.search(queryText, 5, Map.of());
 
             // 获取检索到的文档编号
             List<String> retrievedDocs = results.stream()

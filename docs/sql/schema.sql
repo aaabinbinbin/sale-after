@@ -234,7 +234,7 @@ CREATE TABLE after_sales_comment (
     commenter_id BIGINT NOT NULL COMMENT '评论人ID',
     commenter_role VARCHAR(32) NOT NULL COMMENT '评论人角色',
     content TEXT NOT NULL COMMENT '评论内容',
-    internal_only TINYINT NOT NULL DEFAULT 0 COMMENT '是否仅内部可见',
+    internal_only TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否仅内部可见',
     created_at DATETIME NOT NULL COMMENT '创建时间',
     KEY idx_after_sales_id_created_at (after_sales_id, created_at),
     KEY idx_after_sales_no_created_at (after_sales_no, created_at)
@@ -321,7 +321,7 @@ CREATE TABLE exchange_record (
     exchange_status VARCHAR(32) NOT NULL COMMENT '换货状态',
     outbound_logistics_company VARCHAR(128) COMMENT '换货发出物流公司',
     outbound_logistics_no VARCHAR(128) COMMENT '换货发出物流单号',
-    stock_locked TINYINT NOT NULL DEFAULT 0 COMMENT '是否已锁定库存',
+    stock_locked TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已锁定库存',
     shipped_at DATETIME COMMENT '换货发出时间',
     completed_at DATETIME COMMENT '换货完成时间',
     created_at DATETIME NOT NULL COMMENT '创建时间',
@@ -406,7 +406,7 @@ CREATE TABLE agent_tool_call (
     tool_name VARCHAR(128) NOT NULL COMMENT '工具名称',
     tool_input TEXT COMMENT '工具输入',
     tool_output TEXT COMMENT '工具输出',
-    success TINYINT NOT NULL COMMENT '是否成功',
+    success TINYINT(1) NOT NULL COMMENT '是否成功',
     error_message TEXT COMMENT '错误信息',
     latency_ms BIGINT COMMENT '耗时',
     created_at DATETIME NOT NULL COMMENT '创建时间',
@@ -500,7 +500,7 @@ CREATE TABLE rag_eval_dataset (
     question VARCHAR(1024) NOT NULL COMMENT '评估问题',
     expected_doc_nos TEXT NOT NULL COMMENT '期望命中文档编号，逗号分隔',
     tags VARCHAR(255) COMMENT '标签',
-    enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用',
+    enabled TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
     created_at DATETIME NOT NULL COMMENT '创建时间',
     updated_at DATETIME NOT NULL COMMENT '更新时间',
     KEY idx_enabled (enabled)
@@ -515,11 +515,35 @@ CREATE TABLE rag_eval_result (
     question_id BIGINT NOT NULL COMMENT '问题ID',
     question VARCHAR(1024) NOT NULL COMMENT '问题文本',
     retrieved_doc_nos TEXT COMMENT '检索到的文档编号',
-    hit_at_3 TINYINT NOT NULL COMMENT 'Recall@3是否命中',
-    hit_at_5 TINYINT NOT NULL COMMENT 'Recall@5是否命中',
+    hit_at_3 TINYINT(1) NOT NULL COMMENT 'Recall@3是否命中',
+    hit_at_5 TINYINT(1) NOT NULL COMMENT 'Recall@5是否命中',
     first_hit_rank INT COMMENT '首个命中排名',
     reciprocal_rank DECIMAL(10,6) COMMENT '倒数排名',
     created_at DATETIME NOT NULL COMMENT '创建时间',
     KEY idx_eval_run_no (eval_run_no),
     KEY idx_question_id (question_id)
 ) COMMENT='RAG评估结果表';
+
+-- ============================================================================
+-- 26. Agent LLM 调用记录表
+-- ============================================================================
+CREATE TABLE agent_llm_call (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    trace_id VARCHAR(64) NOT NULL COMMENT '关联 agent_trace',
+    call_type VARCHAR(32) NOT NULL COMMENT '调用类型: INTENT_ROUTING/LOOP_DECISION/PLAN_GENERATION/FINAL_ANSWER',
+    model VARCHAR(64) COMMENT '模型名称',
+    round_num INT DEFAULT 1 COMMENT 'Agent Loop 第几轮',
+    system_prompt TEXT COMMENT 'system prompt',
+    user_prompt TEXT COMMENT 'user prompt',
+    raw_response TEXT COMMENT 'LLM 原始返回',
+    input_tokens INT COMMENT '输入 token 数',
+    output_tokens INT COMMENT '输出 token 数',
+    total_tokens INT COMMENT '总 token',
+    latency_ms BIGINT COMMENT '该次 LLM 调用的延迟',
+    success TINYINT(1) NOT NULL COMMENT '是否成功',
+    error_message TEXT COMMENT '错误信息',
+    created_at DATETIME NOT NULL COMMENT '创建时间',
+    KEY idx_trace_id (trace_id),
+    KEY idx_trace_id_call_type (trace_id, call_type),
+    KEY idx_created_at (created_at)
+) COMMENT='Agent LLM 调用记录表';

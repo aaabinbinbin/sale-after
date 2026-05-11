@@ -7,7 +7,7 @@ spring:
   # 数据源配置（MySQL 本机 127.0.0.1:3306）
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/after_sales_agent?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&allowMultiQueries=true
+    url: jdbc:mysql://127.0.0.1:3306/after_sales_agent?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true
     username: root
     password: 123456
 
@@ -15,7 +15,7 @@ spring:
   data:
     redis:
       host: 127.0.0.1
-      port: 6379
+      port: 16379
       password: 123456
       database: 1
       timeout: 3000ms
@@ -41,14 +41,16 @@ spring:
   # Spring AI 配置（LLM / Embedding API）
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:sk-placeholder}
-      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      api-key: ${MY_API_KEY:sk-5641ab74b69d42c58becbc826a39204c}
+      base-url: ${MY_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
       chat:
         enabled: true
-        model: gpt-4o
+        options:
+          model: qwen3.6-flash
       embedding:
         enabled: true
-        model: text-embedding-3-small
+        options:
+          model: qwen3-vl-rerank
 
   # Jackson 配置
   jackson:

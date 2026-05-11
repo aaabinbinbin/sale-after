@@ -13,8 +13,8 @@ import java.util.stream.Collectors;
 /**
  * RAG 检索服务。
  *
- * local/dev 环境使用 MySQL keyword 匹配作为 fallback，
- * 生产环境使用 pgvector 向量检索。
+ * 优先使用 Embedding + 向量检索，不可用时降级为 MySQL keyword 匹配。
+ * local/dev 的 MySQL fallback 标记 [DEV]，生产路径用 pgvector。
  */
 @Service
 public class RagRetrievalService {
@@ -22,48 +22,53 @@ public class RagRetrievalService {
     private static final Logger log = LoggerFactory.getLogger(RagRetrievalService.class);
 
     private final KnowledgeDocMapper knowledgeDocMapper;
+    private final EmbeddingService embeddingService;
+    private final VectorStoreService vectorStoreService;
 
     @Value("${after-sales.rag.mysql-fallback-enabled:true}")
     private boolean mysqlFallbackEnabled;
 
-    // 简单表示 pgvector 是否就绪（实际应检查连接）
-    private boolean vectorStoreReady = false;
-
-    public RagRetrievalService(KnowledgeDocMapper knowledgeDocMapper) {
+    public RagRetrievalService(KnowledgeDocMapper knowledgeDocMapper,
+                                EmbeddingService embeddingService,
+                                VectorStoreService vectorStoreService) {
         this.knowledgeDocMapper = knowledgeDocMapper;
+        this.embeddingService = embeddingService;
+        this.vectorStoreService = vectorStoreService;
     }
 
     /**
-     * 检索相关知识。
-     *
-     * @param query   查询文本
-     * @param topK    返回条数
-     * @param filters 过滤条件（docType 等）
-     * @return 检索结果
+     * 检索相关知识。优先向量检索，降级 keyword。
      */
     public List<Map<String, Object>> search(String query, int topK, Map<String, Object> filters) {
-        if (!vectorStoreReady && mysqlFallbackEnabled) {
-            log.info("RAG vectorStoreReady=false，启用 MySQL fallback。该路径仅用于 local/dev，不应作为长期主检索路径。");
+        // 尝试向量检索
+        try {
+            float[] queryVec = embeddingService.embed(query);
+            List<Map<String, Object>> vectorResults = vectorStoreService.search(queryVec, topK * 2, filters);
+            if (!vectorResults.isEmpty()) {
+                log.info("RAG 向量检索命中 {} 条 query={}", vectorResults.size(), truncate(query, 50));
+                return vectorResults.stream().limit(topK).collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            log.info("向量检索不可用: {}", e.getMessage());
+        }
+
+        // 降级 MySQL keyword
+        if (mysqlFallbackEnabled) {
+            log.info("[DEV] RAG 向量库空或不可用，启用 MySQL fallback。该路径仅用于 local/dev。");
             return mysqlKeywordSearch(query, topK, filters);
         }
 
-        // TODO: 实际 pgvector 向量检索
-        log.info("RAG 使用 pgvector 向量检索 query={}", query);
-        return mysqlKeywordSearch(query, topK, filters); // 过渡期仍用 MySQL
+        return List.of();
     }
 
-    /**
-     * MySQL keyword 匹配检索（仅用于 local/dev）。
-     */
+    /** MySQL keyword 匹配检索 */
     private List<Map<String, Object>> mysqlKeywordSearch(String query, int topK, Map<String, Object> filters) {
         List<KnowledgeDoc> allDocs = knowledgeDocMapper.selectAll();
         String docTypeFilter = filters != null ? (String) filters.get("docType") : null;
 
-        // 简单的关键词匹配 + 评分
         List<Map<String, Object>> scored = new ArrayList<>();
         for (KnowledgeDoc doc : allDocs) {
             if (docTypeFilter != null && !docTypeFilter.equals(doc.getDocType())) continue;
-
             double score = keywordScore(query, doc.getTitle() + " " + doc.getContent());
             if (score > 0) {
                 Map<String, Object> item = new LinkedHashMap<>();
@@ -75,22 +80,16 @@ public class RagRetrievalService {
                 scored.add(item);
             }
         }
-
-        // 按评分降序
         scored.sort((a, b) -> Double.compare((Double) b.get("score"), (Double) a.get("score")));
         return scored.stream().limit(topK).collect(Collectors.toList());
     }
 
-    /** 简单关键词评分 */
     private double keywordScore(String query, String text) {
         if (query == null || text == null) return 0;
-        String lowerQuery = query.toLowerCase();
-        String lowerText = text.toLowerCase();
+        String lq = query.toLowerCase(), lt = text.toLowerCase();
         double score = 0;
-        // 按词匹配
-        for (String word : lowerQuery.split("\\s+")) {
-            if (word.length() < 2) continue;
-            if (lowerText.contains(word)) score += 1.0;
+        for (String word : lq.split("\\s+")) {
+            if (word.length() >= 2 && lt.contains(word)) score += 1.0;
         }
         return score;
     }

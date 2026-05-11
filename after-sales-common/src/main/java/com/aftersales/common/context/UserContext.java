@@ -41,11 +41,16 @@ public class UserContext {
 
     /**
      * 用户信息快照。
+     *
+     * 需要有默认构造器 + setter，Jackson 反序列化时需要。
      */
     public static class UserInfo {
-        private final Long userId;
-        private final String username;
-        private final String role;
+        private Long userId;
+        private String username;
+        private String role;
+
+        /** Jackson 反序列化需要无参构造器 */
+        public UserInfo() {}
 
         public UserInfo(Long userId, String username, String role) {
             this.userId = userId;
@@ -54,7 +59,12 @@ public class UserContext {
         }
 
         public Long getUserId() { return userId; }
+        public void setUserId(Long userId) { this.userId = userId; }
+
         public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+
         public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
     }
 }

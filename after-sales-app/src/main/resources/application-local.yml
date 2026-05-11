@@ -10,7 +10,7 @@ logging:
 spring:
   # MySQL 本地开发覆盖
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/after_sales_agent?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&allowMultiQueries=true&createDatabaseIfNotExist=true
+    url: jdbc:mysql://127.0.0.1:3306/after_sales_agent?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true&createDatabaseIfNotExist=true
     username: root
     password: 123456
 
@@ -18,7 +18,7 @@ spring:
   data:
     redis:
       host: 127.0.0.1
-      port: 6379
+      port: 16379
       password: 123456
       database: 1
 

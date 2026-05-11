@@ -2,15 +2,15 @@ package com.aftersales.api.controller;
 
 import com.aftersales.biz.service.*;
 import com.aftersales.common.result.Result;
+import com.aftersales.infra.entity.AfterSalesComment;
+import com.aftersales.infra.entity.AfterSalesOperationLog;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.*;
 
 /**
- * 售后接口控制器。
- *
- * 只做参数接收和调用业务服务，不写复杂业务逻辑。
+ * 售后接口控制器。只做参数接收和调用业务服务。
  */
 @RestController
 @RequestMapping("/api/after-sales")
@@ -22,22 +22,28 @@ public class AfterSalesController {
     private final ReturnService returnService;
     private final ExchangeService exchangeService;
     private final CompensationService compensationService;
+    private final OperationLogService operationLogService;
+    private final AfterSalesCommentService commentService;
 
     public AfterSalesController(AfterSalesApplicationService applicationService,
                                  AfterSalesReviewService reviewService,
                                  RefundService refundService,
                                  ReturnService returnService,
                                  ExchangeService exchangeService,
-                                 CompensationService compensationService) {
+                                 CompensationService compensationService,
+                                 OperationLogService operationLogService,
+                                 AfterSalesCommentService commentService) {
         this.applicationService = applicationService;
         this.reviewService = reviewService;
         this.refundService = refundService;
         this.returnService = returnService;
         this.exchangeService = exchangeService;
         this.compensationService = compensationService;
+        this.operationLogService = operationLogService;
+        this.commentService = commentService;
     }
 
-    // ========== 售后申请 ==========
+    // ==================== 售后申请 ====================
 
     @PostMapping("/applications")
     public Result<Map<String, Object>> create(HttpServletRequest request,
@@ -66,7 +72,7 @@ public class AfterSalesController {
         return Result.ok();
     }
 
-    // ========== 审核 ==========
+    // ==================== 审核 ====================
 
     @PostMapping("/{afterSalesNo}/review/approve")
     public Result<Map<String, Object>> approve(@PathVariable String afterSalesNo,
@@ -87,7 +93,7 @@ public class AfterSalesController {
         return Result.ok();
     }
 
-    // ========== 退货 ==========
+    // ==================== 退货 ====================
 
     @PostMapping("/{afterSalesNo}/return/shipment")
     public Result<Void> submitShipment(@PathVariable String afterSalesNo,
@@ -108,7 +114,7 @@ public class AfterSalesController {
         return Result.ok(returnService.getReturn(afterSalesNo));
     }
 
-    // ========== 退款 ==========
+    // ==================== 退款 ====================
 
     @PostMapping("/{afterSalesNo}/refund/execute")
     public Result<Map<String, Object>> executeRefund(HttpServletRequest request,
@@ -123,14 +129,11 @@ public class AfterSalesController {
         return Result.ok(refundService.getRefund(afterSalesNo));
     }
 
-    // ========== 换货 ==========
+    // ==================== 换货 ====================
 
     @PostMapping("/{afterSalesNo}/exchange/lock-stock")
-    public Result<Void> lockStock(@PathVariable String afterSalesNo,
-                                   @RequestBody Map<String, Object> body) {
-        Long skuId = toLong(body.get("skuId"));
-        int quantity = toInt(body.get("quantity"));
-        exchangeService.lockStock(afterSalesNo, skuId, quantity);
+    public Result<Void> lockStock(@PathVariable String afterSalesNo) {
+        exchangeService.lockStock(afterSalesNo);
         return Result.ok();
     }
 
@@ -146,7 +149,7 @@ public class AfterSalesController {
         return Result.ok(exchangeService.getExchange(afterSalesNo));
     }
 
-    // ========== 补偿 ==========
+    // ==================== 补偿 ====================
 
     @PostMapping("/{afterSalesNo}/compensation/grant")
     public Result<Map<String, Object>> grantCompensation(HttpServletRequest request,
@@ -161,13 +164,26 @@ public class AfterSalesController {
         return Result.ok(compensationService.getCompensation(afterSalesNo));
     }
 
-    private Long toLong(Object obj) {
-        if (obj == null) return null;
-        return obj instanceof Number n ? n.longValue() : Long.valueOf(obj.toString());
+    // ==================== 操作日志（只读） ====================
+
+    @GetMapping("/{afterSalesNo}/operation-logs")
+    public Result<List<AfterSalesOperationLog>> operationLogs(@PathVariable String afterSalesNo) {
+        var asOrder = applicationService.getDetail(afterSalesNo);
+        Long id = asOrder.get("order") instanceof com.aftersales.infra.entity.AfterSalesOrder o ? o.getId() : null;
+        if (id == null) return Result.ok(List.of());
+        return Result.ok(operationLogService.listByAfterSalesId(id));
     }
 
-    private int toInt(Object obj) {
-        if (obj == null) return 0;
-        return obj instanceof Number n ? n.intValue() : Integer.parseInt(obj.toString());
+    // ==================== 评论 ====================
+
+    @PostMapping("/{afterSalesNo}/comments")
+    public Result<AfterSalesComment> addComment(@PathVariable String afterSalesNo,
+                                                  @RequestBody Map<String, Object> body) {
+        return Result.ok(commentService.addComment(afterSalesNo, body));
+    }
+
+    @GetMapping("/{afterSalesNo}/comments")
+    public Result<List<AfterSalesComment>> listComments(@PathVariable String afterSalesNo) {
+        return Result.ok(commentService.listComments(afterSalesNo));
     }
 }
